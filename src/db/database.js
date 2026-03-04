@@ -1,7 +1,8 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 const { app } = require('electron');
-const crypto = require('crypto');
+const logger = require('../utils/logger');
+const { hashPassword, verifyPassword } = require('../utils/password');
 
 // O banco de dados fica em: ~/Library/Application Support/aula/aula.db (macOS)
 //                           ~/.config/aula/aula.db (Linux)
@@ -18,15 +19,6 @@ function getDb() {
     throw new Error('Banco de dados não inicializado. Chame setupDatabase() primeiro.');
   }
   return db;
-}
-
-/**
- * Hash simples de senha com SHA-256 + salt fixo.
- * Para produção, considere usar bcrypt — mas better-sqlite3 é síncrono,
- * então argon2/bcrypt exigem cuidado especial. SHA-256 é suficiente para uso local.
- */
-function hashPassword(password) {
-  return crypto.createHash('sha256').update(password + 'scholar_salt_2024').digest('hex');
 }
 
 /**
@@ -206,8 +198,30 @@ function setupDatabase() {
     );
   `);
 
-  console.log(`[Aula DB] Banco inicializado em: ${DB_PATH}`);
+  // Cria índices para melhorar performance
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_admins_school_id ON admins(school_id);
+    CREATE INDEX IF NOT EXISTS idx_teachers_school_id ON teachers(school_id);
+    CREATE INDEX IF NOT EXISTS idx_schedules_school_id ON schedules(school_id);
+    CREATE INDEX IF NOT EXISTS idx_resources_school_id ON resources(school_id);
+    CREATE INDEX IF NOT EXISTS idx_lessons_schedule_id ON lessons(schedule_id);
+    CREATE INDEX IF NOT EXISTS idx_lessons_teacher_id ON lessons(teacher_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_plans_school_id ON lesson_plans(school_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_plans_teacher_id ON lesson_plans(teacher_id);
+    CREATE INDEX IF NOT EXISTS idx_shifts_school_id ON shifts(school_id);
+    CREATE INDEX IF NOT EXISTS idx_classes_school_id ON classes(school_id);
+    CREATE INDEX IF NOT EXISTS idx_classes_shift_id ON classes(shift_id);
+    CREATE INDEX IF NOT EXISTS idx_curricula_school_id ON curricula(school_id);
+    CREATE INDEX IF NOT EXISTS idx_time_slots_shift_id ON time_slots(shift_id);
+    CREATE INDEX IF NOT EXISTS idx_class_curricula_class_id ON class_curricula(class_id);
+    CREATE INDEX IF NOT EXISTS idx_class_curricula_curricula_id ON class_curricula(curricula_id);
+    CREATE INDEX IF NOT EXISTS idx_class_teacher_curricula_class_id ON class_teacher_curricula(class_id);
+    CREATE INDEX IF NOT EXISTS idx_class_teacher_curricula_teacher_id ON class_teacher_curricula(teacher_id);
+    CREATE INDEX IF NOT EXISTS idx_teacher_days_teacher_id ON teacher_days(teacher_id);
+  `);
+
+  logger.info(`Banco inicializado em: ${DB_PATH}`);
   return db;
 }
 
-module.exports = { setupDatabase, getDb, hashPassword, DB_PATH };
+module.exports = { setupDatabase, getDb, hashPassword, verifyPassword, DB_PATH };

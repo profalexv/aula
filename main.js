@@ -1,9 +1,10 @@
 const { app, BrowserWindow, ipcMain, Menu } = require('electron');
 const path = require('path');
+const logger = require('./src/utils/logger');
 
 // Importa o banco de dados e registra os handlers IPC
 const { setupDatabase } = require('./src/db/database');
-const { registerIpcHandlers } = require('./src/db/ipc-handlers');
+const { registerIpcHandlers } = require('./src/db/handlers');
 
 let mainWindow;
 

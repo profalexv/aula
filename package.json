@@ -9,7 +9,9 @@
     "rebuild": "electron-rebuild -f -w better-sqlite3"
   },
   "dependencies": {
-    "better-sqlite3": "^12.6.2"
+    "bcryptjs": "^3.0.3",
+    "better-sqlite3": "^12.6.2",
+    "winston": "^3.19.0"
   },
   "devDependencies": {
     "electron": "^29.1.0",

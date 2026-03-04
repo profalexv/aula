@@ -40,11 +40,14 @@ window.showToast = function(message, type = 'info', duration = 3500) {
   toast.className = `toast ${type}`;
   toast.textContent = message;
   container.appendChild(toast);
+
+  // Anima entrada
+  toast.style.animation = 'slideInUp 0.3s ease-out';
+
+  // Remove após duração
   setTimeout(() => {
-    toast.style.animation = 'none';
-    toast.style.opacity = '0';
-    toast.style.transition = 'opacity .3s';
-    setTimeout(() => toast.remove(), 300);
+    toast.style.animation = 'slideOutDown 0.3s ease-out';
+    toast.addEventListener('animationend', () => toast.remove(), { once: true });
   }, duration);
 };
 
