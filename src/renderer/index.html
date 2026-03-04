@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy"
+    content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aula</title>
+  <link rel="stylesheet" href="styles/app.css">
+</head>
+<body>
+
+  <!-- Barra de abas no topo -->
+  <header class="tab-bar">
+    <div class="app-logo">
+      Aula
+      <span class="app-school-name"></span>
+    </div>
+    <nav class="tabs">
+      <button class="tab-btn active" data-module="cronograma" title="Cronograma de Horários">
+        📅 Cronograma
+      </button>
+      <button class="tab-btn" data-module="aula" title="Registro de Aulas">
+        📝 Aula
+      </button>
+      <div class="tab-bar-spacer"></div>
+      <button class="tab-btn tab-btn-icon" data-module="licencas" title="Gerenciar Licenças">🔑</button>
+    </nav>
+  </header>
+
+  <!-- Área de conteúdo dos módulos -->
+  <main id="app-content" class="app-content">
+    <!-- Os módulos são carregados aqui dinamicamente -->
+    <div id="loading-indicator" class="loading">Carregando...</div>
+  </main>
+
+  <!-- Toast de notificações -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Camada de dados e licenças (carregados antes dos módulos) -->
+  <script src="data/data-provider.js"></script>
+  <script src="data/license-client.js"></script>
+
+  <!-- Scripts dos módulos -->
+  <script src="modules/cronograma/cronograma.js"></script>
+  <script src="modules/aula/aula.js"></script>
+
+  <!-- Script principal -->
+  <script src="app.js"></script>
+</body>
+</html>

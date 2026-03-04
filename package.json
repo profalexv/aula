@@ -1,0 +1,21 @@
+{
+  "name": "aula",
+  "version": "1.0.0",
+  "description": "Aula - Plataforma escolar desktop (Electron + SQLite)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "rebuild": "electron-rebuild -f -w better-sqlite3"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2"
+  },
+  "devDependencies": {
+    "electron": "^29.1.0",
+    "electron-rebuild": "^3.2.9"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT"
+}
