@@ -5,421 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Aula - Plataforma escolar desktop para gerenciamento de cronogramas, aulas e licenças.">
   <title>Aula - Plataforma Escolar Desktop</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    :root {
-      --primary: #3B6FD4;
-      --primary-dark: #2a54a8;
-      --accent: #5B4EE8;
-      --success: #16a34a;
-      --warning: #d97706;
-      --danger: #dc2626;
-      --bg-light: #f2f4f8;
-      --bg-white: #ffffff;
-      --text-dark: #1e2430;
-      --text-muted: #6b7280;
-      --border: #d8dce6;
-      --shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
-    }
-
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      color: var(--text-dark);
-      background: var(--bg-light);
-      line-height: 1.6;
-    }
-
-    /* ─── Header ─────────────────────────────────────────────────────────── */
-    header {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-      color: white;
-      padding: 20px 0;
-      position: sticky;
-      top: 0;
-      z-index: 100;
-      box-shadow: var(--shadow);
-    }
-
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 20px;
-    }
-
-    header nav {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .logo {
-      font-size: 28px;
-      font-weight: 700;
-      letter-spacing: 1px;
-    }
-
-    .nav-links {
-      display: flex;
-      gap: 30px;
-      list-style: none;
-    }
-
-    .nav-links a {
-      color: white;
-      text-decoration: none;
-      font-size: 15px;
-      transition: opacity 0.3s;
-    }
-
-    .nav-links a:hover {
-      opacity: 0.8;
-    }
-
-    .btn {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: none;
-      cursor: pointer;
-      font-size: 15px;
-      font-weight: 600;
-      transition: all 0.3s;
-      text-decoration: none;
-      display: inline-block;
-    }
-
-    .btn-primary {
-      background: white;
-      color: var(--primary);
-    }
-
-    .btn-primary:hover {
-      box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-      transform: translateY(-2px);
-    }
-
-    .btn-secondary {
-      background: var(--primary);
-      color: white;
-      border: 2px solid white;
-    }
-
-    .btn-secondary:hover {
-      background: var(--primary-dark);
-    }
-
-    /* ─── Hero Section ──────────────────────────────────────────────────── */
-    .hero {
-      padding: 100px 0;
-      text-align: center;
-      color: white;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-    }
-
-    .hero h1 {
-      font-size: 52px;
-      margin-bottom: 20px;
-      font-weight: 800;
-    }
-
-    .hero p {
-      font-size: 20px;
-      margin-bottom: 40px;
-      opacity: 0.95;
-    }
-
-    .hero-buttons {
-      display: flex;
-      gap: 20px;
-      justify-content: center;
-      flex-wrap: wrap;
-    }
-
-    /* ─── Features Section ──────────────────────────────────────────────── */
-    .features {
-      padding: 80px 0;
-      background: white;
-    }
-
-    .section-title {
-      font-size: 42px;
-      text-align: center;
-      margin-bottom: 60px;
-      color: var(--text-dark);
-    }
-
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 40px;
-    }
-
-    .feature-card {
-      background: var(--bg-light);
-      padding: 40px 30px;
-      border-radius: 12px;
-      text-align: center;
-      transition: all 0.3s;
-      border: 1px solid var(--border);
-    }
-
-    .feature-card:hover {
-      transform: translateY(-8px);
-      box-shadow: var(--shadow);
-      border-color: var(--primary);
-    }
-
-    .feature-icon {
-      font-size: 48px;
-      margin-bottom: 20px;
-    }
-
-    .feature-card h3 {
-      font-size: 24px;
-      margin-bottom: 15px;
-      color: var(--primary);
-    }
-
-    .feature-card p {
-      color: var(--text-muted);
-      font-size: 15px;
-      line-height: 1.8;
-    }
-
-    /* ─── Modules Section ───────────────────────────────────────────────── */
-    .modules {
-      padding: 80px 0;
-      background: var(--bg-light);
-    }
-
-    .modules-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-      gap: 30px;
-    }
-
-    .module-card {
-      background: white;
-      padding: 35px 25px;
-      border-radius: 12px;
-      border-left: 5px solid var(--primary);
-      box-shadow: var(--shadow);
-      transition: all 0.3s;
-    }
-
-    .module-card:hover {
-      border-left-color: var(--accent);
-      transform: translateX(5px);
-    }
-
-    .module-card h3 {
-      font-size: 22px;
-      margin-bottom: 15px;
-      color: var(--primary);
-    }
-
-    .module-card ul {
-      list-style: none;
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .module-card li {
-      padding: 8px 0;
-      display: flex;
-      gap: 10px;
-    }
-
-    .module-card li:before {
-      content: "✓";
-      color: var(--success);
-      font-weight: bold;
-      min-width: 20px;
-    }
-
-    /* ─── Benefits Section ──────────────────────────────────────────────── */
-    .benefits {
-      padding: 80px 0;
-      background: white;
-    }
-
-    .benefits-content {
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 60px;
-      align-items: center;
-    }
-
-    .benefits-text h2 {
-      font-size: 36px;
-      margin-bottom: 25px;
-      color: var(--primary);
-    }
-
-    .benefits-list {
-      list-style: none;
-    }
-
-    .benefits-list li {
-      padding: 15px 0;
-      font-size: 16px;
-      color: var(--text-dark);
-      display: flex;
-      gap: 15px;
-      align-items: flex-start;
-    }
-
-    .benefits-list li:before {
-      content: "→";
-      color: var(--accent);
-      font-weight: bold;
-      font-size: 20px;
-      flex-shrink: 0;
-    }
-
-    .benefits-image {
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-      border-radius: 12px;
-      height: 400px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 96px;
-      font-weight: 300;
-    }
-
-    /* ─── Pricing Section ───────────────────────────────────────────────── */
-    .pricing {
-      padding: 80px 0;
-      background: var(--bg-light);
-    }
-
-    .pricing-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 30px;
-    }
-
-    .pricing-card {
-      background: white;
-      border-radius: 12px;
-      padding: 40px 30px;
-      text-align: center;
-      border: 2px solid var(--border);
-      transition: all 0.3s;
-    }
-
-    .pricing-card.featured {
-      border-color: var(--primary);
-      box-shadow: 0 10px 30px rgba(59, 111, 212, 0.15);
-      transform: scale(1.05);
-    }
-
-    .pricing-card h3 {
-      font-size: 24px;
-      margin-bottom: 15px;
-      color: var(--primary);
-    }
-
-    .price {
-      font-size: 48px;
-      font-weight: 800;
-      margin: 20px 0;
-      color: var(--text-dark);
-    }
-
-    .price-period {
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .pricing-features {
-      list-style: none;
-      margin: 30px 0;
-      text-align: left;
-    }
-
-    .pricing-features li {
-      padding: 12px 0;
-      border-bottom: 1px solid var(--border);
-      color: var(--text-muted);
-      font-size: 14px;
-    }
-
-    .pricing-features li:last-child {
-      border-bottom: none;
-    }
-
-    /* ─── CTA Section ──────────────────────────────────────────────────── */
-    .cta {
-      padding: 80px 0;
-      background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
-      color: white;
-      text-align: center;
-    }
-
-    .cta h2 {
-      font-size: 42px;
-      margin-bottom: 25px;
-      font-weight: 800;
-    }
-
-    .cta p {
-      font-size: 18px;
-      margin-bottom: 40px;
-      opacity: 0.95;
-    }
-
-    /* ─── Footer ────────────────────────────────────────────────────────── */
-    footer {
-      background: var(--text-dark);
-      color: white;
-      padding: 40px 0;
-      text-align: center;
-      font-size: 14px;
-    }
-
-    footer a {
-      color: var(--primary);
-      text-decoration: none;
-    }
-
-    footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* ─── Responsive ────────────────────────────────────────────────────── */
-    @media (max-width: 768px) {
-      .hero h1 {
-        font-size: 36px;
-      }
-
-      .nav-links {
-        gap: 15px;
-      }
-
-      .benefits-content {
-        grid-template-columns: 1fr;
-      }
-
-      .benefits-image {
-        height: 300px;
-      }
-
-      .pricing-card.featured {
-        transform: scale(1);
-      }
-
-      .section-title {
-        font-size: 32px;
-      }
-    }
-  </style>
+  <link rel="stylesheet" href="styles/index.css">
 </head>
 <body>
   <!-- Header -->
@@ -430,9 +16,9 @@
         <ul class="nav-links">
           <li><a href="#features">Recursos</a></li>
           <li><a href="#modules">Módulos</a></li>
-          <li><a href="#pricing">Preços</a></li>
-          <li><a href="#contact">Contato</a></li>
-          <li><a href="src/renderer/index.html" class="btn btn-primary">Entrar</a></li>
+          <li><a href="#pricing">Implantação</a></li>
+          <li><a href="#contact">Demonstração</a></li>
+          <li><a href="src/renderer/index.html" class="btn btn-primary">Abrir Sistema</a></li>
         </ul>
       </nav>
     </div>
@@ -442,9 +28,9 @@
   <section class="hero">
     <div class="container">
       <h1>Gerenciamento Escolar Simplificado</h1>
-      <p>A plataforma desktop completa para controlar cronogramas, aulas e coordenar sua escola</p>
+      <p>Sistema desktop instalado localmente para controlar cronogramas, aulas e coordenar sua escola sem depender da internet.</p>
       <div class="hero-buttons">
-        <a href="src/renderer/index.html" class="btn btn-primary">Começar Agora</a>
+        <a href="src/renderer/index.html" class="btn btn-primary">Abrir Aplicativo</a>
         <button class="btn btn-secondary">Saiba Mais</button>
       </div>
     </div>
@@ -539,7 +125,7 @@
             <li>Ativar/desativar módulos</li>
             <li>Gerenciar chaves de licença</li>
             <li>Acompanhar vigência</li>
-            <li>Sincronizar com servidor (em breve)</li>
+            <li>Operação totalmente local (offline)</li>
           </ul>
         </div>
       </div>
@@ -571,54 +157,54 @@
   <!-- Pricing Section -->
   <section id="pricing" class="pricing">
     <div class="container">
-      <h2 class="section-title">Planos</h2>
+      <h2 class="section-title">Modalidades de Implantação</h2>
       <div class="pricing-grid">
         <div class="pricing-card">
-          <h3>Básico</h3>
-          <p>Para escolas pequenas</p>
-          <div class="price">Gratuito</div>
-          <p class="price-period">Sempre</p>
+          <h3>Essencial Local</h3>
+          <p>Para operação em uma unidade escolar</p>
+          <div class="price">Offline</div>
+          <p class="price-period">instalação local</p>
           <ul class="pricing-features">
             <li>✓ Cronograma básico</li>
             <li>✓ Até 50 professores</li>
             <li>✓ 1 escola</li>
-            <li>✓ Suporte por email</li>
+            <li>✓ Suporte técnico de implantação</li>
             <li>✗ Planos de aula avançados</li>
             <li>✗ Relatórios premium</li>
           </ul>
-          <a href="src/renderer/index.html" class="btn btn-primary">Começar</a>
+          <a href="#contact" class="btn btn-primary">Solicitar demonstração</a>
         </div>
 
         <div class="pricing-card featured">
-          <h3>Profissional</h3>
-          <p>Mais recursos e flexibilidade</p>
-          <div class="price">R$ 99</div>
-          <p class="price-period">por mês</p>
+          <h3>Completo Local</h3>
+          <p>Mais recursos para gestão acadêmica</p>
+          <div class="price">Offline+</div>
+          <p class="price-period">implantação assistida</p>
           <ul class="pricing-features">
-            <li>✓ Tudo do plano Básico</li>
+            <li>✓ Tudo do Essencial Local</li>
             <li>✓ Professores ilimitados</li>
             <li>✓ Até 5 escolas</li>
             <li>✓ Planos de aula avançados</li>
             <li>✓ Relatórios detalhados</li>
             <li>✓ Suporte prioritário</li>
           </ul>
-          <a href="src/renderer/index.html" class="btn btn-primary">Escolher Plano</a>
+          <a href="#contact" class="btn btn-primary">Solicitar demonstração</a>
         </div>
 
         <div class="pricing-card">
-          <h3>Enterprise</h3>
-          <p>Para grandes redes</p>
-          <div class="price">Customizado</div>
-          <p class="price-period">sob consulta</p>
+          <h3>Rede Educacional</h3>
+          <p>Para múltiplas unidades com padronização</p>
+          <div class="price">Sob consulta</div>
+          <p class="price-period">projeto de implantação</p>
           <ul class="pricing-features">
             <li>✓ Escolas ilimitadas</li>
             <li>✓ Usuários ilimitados</li>
-            <li>✓ API customizada</li>
-            <li>✓ Sincronização Supabase</li>
-            <li>✓ onboarding dedicado</li>
-            <li>✓ SLA 99.9%</li>
+            <li>✓ Configuração por unidade</li>
+            <li>✓ Treinamento da equipe</li>
+            <li>✓ Acompanhamento dedicado</li>
+            <li>✓ Suporte estendido</li>
           </ul>
-          <a href="#contact" class="btn btn-primary">Contate-nos</a>
+          <a href="#contact" class="btn btn-primary">Falar com a equipe</a>
         </div>
       </div>
     </div>
@@ -627,9 +213,9 @@
   <!-- CTA Section -->
   <section id="contact" class="cta">
     <div class="container">
-      <h2>Pronto para melhorar sua escola?</h2>
-      <p>Comece agora gratuitamente. Sem cartão de crédito necessário.</p>
-      <a href="src/renderer/index.html" class="btn btn-primary">Acessar Aula</a>
+      <h2>Pronto para implantar o Aula na sua escola?</h2>
+      <p>Esta página é institucional. O sistema funciona em modo desktop/local e é instalado no ambiente da instituição.</p>
+      <a href="src/renderer/index.html" class="btn btn-primary">Abrir versão instalada</a>
     </div>
   </section>
 
