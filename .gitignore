@@ -1,8 +1,0 @@
-node_modules/
-.venv/
-dist/
-out/
-*.db
-*.db-shm
-*.db-wal
-.env
