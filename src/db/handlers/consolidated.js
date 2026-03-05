@@ -239,20 +239,45 @@ function registerLessonHandlers(ipcMain) {
 
   ipcMain.handle('db:createLesson', (_, data) => {
     try {
-      const { schedule_id, teacher_id = null, weekday, period, subject, classroom = '', notes = '' } = data;
+      const { schedule_id, resource_id = null, teacher_id = null, weekday, period, subject, classroom = '', notes = '' } = data;
       if (!isValidPositiveInt(schedule_id) || !isValidPositiveInt(weekday) || !isValidPositiveInt(period) || !subject?.trim()) {
         throw new Error('Dados inválidos.');
       }
 
+      // — Conflito de recurso: mesmo recurso já ocupado neste período
+      if (resource_id) {
+        const resourceConflict = getDb().prepare(
+          `SELECT id FROM lessons
+           WHERE schedule_id = ? AND resource_id = ? AND weekday = ? AND period = ?`
+        ).get(schedule_id, resource_id, weekday, period);
+        if (resourceConflict) {
+          throw new Error('Este recurso já está ocupado neste período.');
+        }
+      }
+
+      // — Conflito de professor: professor já alocado em outro recurso neste período
+      if (teacher_id) {
+        const teacherConflict = getDb().prepare(
+          `SELECT l.id, r.name as resource_name
+           FROM lessons l
+           LEFT JOIN resources r ON r.id = l.resource_id
+           WHERE l.schedule_id = ? AND l.teacher_id = ? AND l.weekday = ? AND l.period = ?`
+        ).get(schedule_id, teacher_id, weekday, period);
+        if (teacherConflict) {
+          const where = teacherConflict.resource_name ? ` (${teacherConflict.resource_name})` : '';
+          throw new Error(`Professor já possui agendamento neste período${where}.`);
+        }
+      }
+
       const result = getDb()
-        .prepare('INSERT INTO lessons (schedule_id, teacher_id, weekday, period, subject, classroom, notes) VALUES (?, ?, ?, ?, ?, ?, ?)')
-        .run(schedule_id, teacher_id, weekday, period, subject.trim(), classroom.trim(), notes);
+        .prepare('INSERT INTO lessons (schedule_id, resource_id, teacher_id, weekday, period, subject, classroom, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+        .run(schedule_id, resource_id, teacher_id, weekday, period, subject.trim(), classroom.trim(), notes);
       
       logger.info('Lesson created', { id: result.lastInsertRowid, schedule_id });
       return { success: true, data: { id: result.lastInsertRowid } };
     } catch (e) {
       logger.error('Failed to create lesson', { error: e.message });
-      return { success: false, error: getFriendlyErrorMessage(e) };
+      return { success: false, error: e.message };
     }
   });
 
@@ -260,9 +285,34 @@ function registerLessonHandlers(ipcMain) {
     try {
       if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
       
-      const { teacher_id = null, weekday, period, subject, classroom = '', notes = '' } = data;
+      const { schedule_id, resource_id = null, teacher_id = null, weekday, period, subject, classroom = '', notes = '' } = data;
       if (!isValidPositiveInt(weekday) || !isValidPositiveInt(period) || !subject?.trim()) {
         throw new Error('Dados inválidos.');
+      }
+
+      // — Conflito de recurso (excluindo o próprio registro)
+      if (resource_id && schedule_id) {
+        const resourceConflict = getDb().prepare(
+          `SELECT id FROM lessons
+           WHERE schedule_id = ? AND resource_id = ? AND weekday = ? AND period = ? AND id != ?`
+        ).get(schedule_id, resource_id, weekday, period, id);
+        if (resourceConflict) {
+          throw new Error('Este recurso já está ocupado neste período.');
+        }
+      }
+
+      // — Conflito de professor (excluindo o próprio registro)
+      if (teacher_id && schedule_id) {
+        const teacherConflict = getDb().prepare(
+          `SELECT l.id, r.name as resource_name
+           FROM lessons l
+           LEFT JOIN resources r ON r.id = l.resource_id
+           WHERE l.schedule_id = ? AND l.teacher_id = ? AND l.weekday = ? AND l.period = ? AND l.id != ?`
+        ).get(schedule_id, teacher_id, weekday, period, id);
+        if (teacherConflict) {
+          const where = teacherConflict.resource_name ? ` (${teacherConflict.resource_name})` : '';
+          throw new Error(`Professor já possui agendamento neste período${where}.`);
+        }
       }
 
       getDb()
@@ -273,7 +323,7 @@ function registerLessonHandlers(ipcMain) {
       return { success: true };
     } catch (e) {
       logger.error('Failed to update lesson', { error: e.message });
-      return { success: false, error: getFriendlyErrorMessage(e) };
+      return { success: false, error: e.message };
     }
   });
 
@@ -291,4 +341,272 @@ function registerLessonHandlers(ipcMain) {
   });
 }
 
-module.exports = { registerAdminHandlers, registerTeacherHandlers, registerScheduleHandlers, registerLessonHandlers };
+function registerResourceHandlers(ipcMain) {
+  ipcMain.handle('db:getResources', (_, schoolId) => {
+    try {
+      const rows = schoolId
+        ? getDb().prepare('SELECT * FROM resources WHERE school_id = ? ORDER BY name').all(schoolId)
+        : getDb().prepare('SELECT * FROM resources ORDER BY name').all();
+      return { success: true, data: rows };
+    } catch (e) {
+      logger.error('Failed to get resources', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:createResource', (_, data) => {
+    try {
+      const { school_id, name, type, capacity = null, description = '' } = data;
+      if (!isValidPositiveInt(school_id) || !name?.trim() || !type?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      const result = getDb()
+        .prepare('INSERT INTO resources (school_id, name, type, capacity, description) VALUES (?, ?, ?, ?, ?)')
+        .run(school_id, name.trim(), type.trim(), capacity, description.trim());
+      
+      logger.info('Resource created', { id: result.lastInsertRowid, school_id });
+      return { success: true, data: { id: result.lastInsertRowid } };
+    } catch (e) {
+      logger.error('Failed to create resource', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:updateResource', (_, id, data) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      const { name, type, capacity, description } = data;
+      if (!name?.trim() || !type?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      getDb()
+        .prepare('UPDATE resources SET name = ?, type = ?, capacity = ?, description = ? WHERE id = ?')
+        .run(name.trim(), type.trim(), capacity, description?.trim() || '', id);
+      
+      logger.info('Resource updated', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to update resource', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:deleteResource', (_, id) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      getDb().prepare('DELETE FROM resources WHERE id = ?').run(id);
+      logger.info('Resource deleted', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to delete resource', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+}
+
+function registerClassHandlers(ipcMain) {
+  ipcMain.handle('db:getClasses', (_, schoolId) => {
+    try {
+      const rows = schoolId
+        ? getDb().prepare('SELECT * FROM classes WHERE school_id = ? ORDER BY name').all(schoolId)
+        : getDb().prepare('SELECT * FROM classes ORDER BY name').all();
+      return { success: true, data: rows };
+    } catch (e) {
+      logger.error('Failed to get classes', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:createClass', (_, data) => {
+    try {
+      const { school_id, shift_id, name, year } = data;
+      if (!isValidPositiveInt(school_id) || !isValidPositiveInt(shift_id) || !name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      const result = getDb()
+        .prepare('INSERT INTO classes (school_id, shift_id, name, year) VALUES (?, ?, ?, ?)')
+        .run(school_id, shift_id, name.trim(), year);
+      
+      logger.info('Class created', { id: result.lastInsertRowid, school_id });
+      return { success: true, data: { id: result.lastInsertRowid } };
+    } catch (e) {
+      logger.error('Failed to create class', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:updateClass', (_, id, data) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      const { name, year } = data;
+      if (!name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      getDb()
+        .prepare('UPDATE classes SET name = ?, year = ? WHERE id = ?')
+        .run(name.trim(), year, id);
+      
+      logger.info('Class updated', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to update class', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:deleteClass', (_, id) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      getDb().prepare('DELETE FROM classes WHERE id = ?').run(id);
+      logger.info('Class deleted', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to delete class', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+}
+
+function registerCurriculaHandlers(ipcMain) {
+  ipcMain.handle('db:getCurricula', (_, schoolId) => {
+    try {
+      const rows = schoolId
+        ? getDb().prepare('SELECT * FROM curricula WHERE school_id = ? ORDER BY name').all(schoolId)
+        : getDb().prepare('SELECT * FROM curricula ORDER BY name').all();
+      return { success: true, data: rows };
+    } catch (e) {
+      logger.error('Failed to get curricula', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:createCurricula', (_, data) => {
+    try {
+      const { school_id, name, code = '', description = '' } = data;
+      if (!isValidPositiveInt(school_id) || !name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      const result = getDb()
+        .prepare('INSERT INTO curricula (school_id, name, code, description) VALUES (?, ?, ?, ?)')
+        .run(school_id, name.trim(), code.trim(), description.trim());
+      
+      logger.info('Curricula created', { id: result.lastInsertRowid, school_id });
+      return { success: true, data: { id: result.lastInsertRowid } };
+    } catch (e) {
+      logger.error('Failed to create curricula', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:updateCurricula', (_, id, data) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      const { name, code, description } = data;
+      if (!name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      getDb()
+        .prepare('UPDATE curricula SET name = ?, code = ?, description = ? WHERE id = ?')
+        .run(name.trim(), code?.trim() || '', description?.trim() || '', id);
+      
+      logger.info('Curricula updated', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to update curricula', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:deleteCurricula', (_, id) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      getDb().prepare('DELETE FROM curricula WHERE id = ?').run(id);
+      logger.info('Curricula deleted', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to delete curricula', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+}
+
+function registerShiftHandlers(ipcMain) {
+  ipcMain.handle('db:getShifts', (_, schoolId) => {
+    try {
+      const rows = schoolId
+        ? getDb().prepare('SELECT * FROM shifts WHERE school_id = ? ORDER BY name').all(schoolId)
+        : getDb().prepare('SELECT * FROM shifts ORDER BY name').all();
+      return { success: true, data: rows };
+    } catch (e) {
+      logger.error('Failed to get shifts', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:createShift', (_, data) => {
+    try {
+      const { school_id, name } = data;
+      if (!isValidPositiveInt(school_id) || !name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      const result = getDb()
+        .prepare('INSERT INTO shifts (school_id, name) VALUES (?, ?)')
+        .run(school_id, name.trim());
+      
+      logger.info('Shift created', { id: result.lastInsertRowid, school_id });
+      return { success: true, data: { id: result.lastInsertRowid } };
+    } catch (e) {
+      logger.error('Failed to create shift', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:updateShift', (_, id, data) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      const { name } = data;
+      if (!name?.trim()) {
+        throw new Error('Dados inválidos.');
+      }
+
+      getDb()
+        .prepare('UPDATE shifts SET name = ? WHERE id = ?')
+        .run(name.trim(), id);
+      
+      logger.info('Shift updated', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to update shift', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+
+  ipcMain.handle('db:deleteShift', (_, id) => {
+    try {
+      if (!isValidPositiveInt(id)) throw new Error('ID inválido.');
+      
+      getDb().prepare('DELETE FROM shifts WHERE id = ?').run(id);
+      logger.info('Shift deleted', { id });
+      return { success: true };
+    } catch (e) {
+      logger.error('Failed to delete shift', { error: e.message });
+      return { success: false, error: getFriendlyErrorMessage(e) };
+    }
+  });
+}
+
+module.exports = { registerAdminHandlers, registerTeacherHandlers, registerScheduleHandlers, registerLessonHandlers, registerShiftHandlers, registerResourceHandlers, registerClassHandlers, registerCurriculaHandlers };

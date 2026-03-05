@@ -5,6 +5,20 @@ const { contextBridge, ipcRenderer } = require('electron');
  * O renderer nunca tem acesso direto ao Node.js ou ao IPC.
  */
 contextBridge.exposeInMainWorld('scholar', {
+  // --- Autenticação ---
+  auth: {
+    checkFirstAdmin: (schoolId) => ipcRenderer.invoke('auth:checkFirstAdmin', schoolId),
+    registerFirstAdmin: (data) => ipcRenderer.invoke('auth:registerFirstAdmin', data),
+    login: (data) => ipcRenderer.invoke('auth:login', data),
+    verifySession: (data) => ipcRenderer.invoke('auth:verifySession', data),
+    logout: (data) => ipcRenderer.invoke('auth:logout', data),
+    deactivateAdmin: (data) => ipcRenderer.invoke('auth:deactivateAdmin', data),
+    activateAdmin: (data) => ipcRenderer.invoke('auth:activateAdmin', data),
+    deactivateTeacher: (data) => ipcRenderer.invoke('auth:deactivateTeacher', data),
+    activateTeacher: (data) => ipcRenderer.invoke('auth:activateTeacher', data),
+    promoteTeacherToAdmin: (data) => ipcRenderer.invoke('auth:promoteTeacherToAdmin', data),
+  },
+
   // --- Superadmins ---
   getSuperadmins: () => ipcRenderer.invoke('db:getSuperadmins'),
   createSuperadmin: (data) => ipcRenderer.invoke('db:createSuperadmin', data),

@@ -42,8 +42,9 @@ const AVAILABLE_MODULES = {
   },
 };
 
-// ─── Durante desenvolvimento todos os módulos ficam liberados ─────────────────
-const DEV_MODE = true; // Alterar para false antes de publicar
+// ─── Modo de desenvolvimento: ativado via flag --dev ou NODE_ENV ─────────────
+// Execute `npm run dev` para modo dev; `npm start` para produção.
+const DEV_MODE = process.argv.includes('--dev') || process.env.NODE_ENV === 'development';
 
 /**
  * Garante que a tabela de licenças existe no banco.

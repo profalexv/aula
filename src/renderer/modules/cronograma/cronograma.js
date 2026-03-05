@@ -14,7 +14,8 @@ window.ModuleCronograma = (() => {
   let state = {
     resources: [],
     teachers: [],
-    lessons: [],
+    lessons: [],        // todas as aulas do schedule (todos os recursos)
+    resourceLessons: [], // aulas filtradas pelo recurso selecionado
     selectedResourceId: null,
     defaultScheduleId: null,
   };
@@ -100,13 +101,18 @@ window.ModuleCronograma = (() => {
   }
 
   async function loadLessons(container) {
-    if (!state.selectedResourceId) {
+    if (!state.defaultScheduleId) {
       renderGrid(container);
       return;
     }
     try {
-      state.lessons = await window.DB.getLessons(state.selectedResourceId);
-    } catch { state.lessons = []; }
+      // Carrega TODAS as aulas do schedule (necessário para detectar conflitos de professor)
+      state.lessons = await window.DB.getLessons(state.defaultScheduleId);
+      // Filtra pelo recurso selecionado para exibição na grade
+      state.resourceLessons = state.selectedResourceId
+        ? state.lessons.filter(l => l.resource_id === state.selectedResourceId)
+        : [];
+    } catch { state.lessons = []; state.resourceLessons = []; }
     renderGrid(container);
   }
 
@@ -129,10 +135,10 @@ window.ModuleCronograma = (() => {
       return;
     }
 
-    const maxPeriod = Math.max(6, ...state.lessons.map(l => l.period || 0));
+    const maxPeriod = Math.max(6, ...state.resourceLessons.map(l => l.period || 0));
 
     const lessonMap = {};
-    state.lessons.forEach(l => { lessonMap[`${l.weekday}_${l.period}`] = l; });
+    state.resourceLessons.forEach(l => { lessonMap[`${l.weekday}_${l.period}`] = l; });
 
     let html = `<div style="margin-bottom:16px">
       <div style="font-size:14px;color:var(--color-text-muted)">
@@ -171,7 +177,8 @@ window.ModuleCronograma = (() => {
 
     html += `<div style="margin-top:10px;display:flex;gap:8px;align-items:center">
       <button class="btn btn-ghost btn-sm" id="btn-add-period">+ Período</button>
-      <span style="color:var(--color-text-muted);font-size:12px">${state.lessons.length} agendamento(s)</span>
+      <button class="btn btn-ghost btn-sm" id="btn-print-schedule">🖨️ Imprimir</button>
+      <span style="color:var(--color-text-muted);font-size:12px">${state.resourceLessons.length} agendamento(s)</span>
     </div>`;
 
     el.innerHTML = html;
@@ -179,6 +186,10 @@ window.ModuleCronograma = (() => {
     // Cliques nas células
     el.querySelectorAll('td[data-day]').forEach(cell => {
       cell.addEventListener('click', () => {
+        if (window.AppContext.currentUserRole !== 'admin') {
+          window.showToast('Apenas administradores podem editar o cronograma.', 'warning');
+          return;
+        }
         const day = Number(cell.dataset.day);
         const period = Number(cell.dataset.period);
         const existing = lessonMap[`${day}_${period}`];
@@ -187,12 +198,91 @@ window.ModuleCronograma = (() => {
     });
 
     el.querySelector('#btn-add-period')?.addEventListener('click', () => {
+      if (window.AppContext.currentUserRole !== 'admin') {
+        window.showToast('Apenas administradores podem editar o cronograma.', 'warning');
+        return;
+      }
       const newPeriod = maxPeriod + 1;
       window.showToast(`Período ${newPeriod}º adicionado. Clique nas células para agendar.`, 'info');
-      state.lessons.push({ weekday: 0, period: newPeriod, subject: '', schedule_id: state.selectedResourceId, _placeholder: true });
+      state.resourceLessons.push({ weekday: 0, period: newPeriod, subject: '', resource_id: state.selectedResourceId, _placeholder: true });
       renderGrid(container);
-      state.lessons = state.lessons.filter(l => !l._placeholder);
+      state.resourceLessons = state.resourceLessons.filter(l => !l._placeholder);
     });
+
+    el.querySelector('#btn-print-schedule')?.addEventListener('click', () => {
+      printSchedule(resource, lessonMap, maxPeriod);
+    });
+  }
+
+  // ─── Impressão / exportação ───────────────────────────────────────────────
+  function printSchedule(resource, lessonMap, maxPeriod) {
+    const schoolName = escHtml(window.AppContext?.schoolName ?? '');
+    const resourceName = escHtml(resource.name);
+    const resourceType = escHtml(resource.type);
+
+    let tableRows = '';
+    for (let p = 1; p <= maxPeriod; p++) {
+      tableRows += `<tr><td class="period">${p}º</td>`;
+      for (let d = 1; d <= WEEKDAYS.length; d++) {
+        const lesson = lessonMap[`${d}_${p}`];
+        if (lesson) {
+          tableRows += `<td class="has-lesson">
+            <strong>${escHtml(lesson.subject)}</strong>
+            ${lesson.teacher_name ? `<br><small>${escHtml(lesson.teacher_name)}</small>` : ''}
+            ${lesson.notes ? `<br><em class="notes">${escHtml(lesson.notes)}</em>` : ''}
+          </td>`;
+        } else {
+          tableRows += `<td class="empty"></td>`;
+        }
+      }
+      tableRows += '</tr>';
+    }
+
+    const printHtml = `<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>Cronograma — ${resourceName}</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Arial, sans-serif; font-size: 11px; padding: 20px; color: #000; }
+    .header { margin-bottom: 16px; border-bottom: 2px solid #333; padding-bottom: 10px; }
+    .header h1 { font-size: 16px; }
+    .header p { font-size: 11px; color: #555; margin-top: 4px; }
+    table { width: 100%; border-collapse: collapse; }
+    th { background: #333; color: #fff; padding: 6px 8px; font-size: 10px; text-align: center; }
+    td { border: 1px solid #ccc; padding: 5px 7px; vertical-align: top; min-height: 36px; }
+    td.period { background: #f0f0f0; font-weight: bold; text-align: center; width: 48px; }
+    td.has-lesson { background: #fff; }
+    td.empty { background: #fafafa; }
+    small { color: #555; font-size: 10px; }
+    em.notes { color: #777; font-size: 9px; }
+    .footer { margin-top: 12px; font-size: 10px; color: #777; text-align: right; }
+    @media print { body { padding: 10px; } }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Cronograma — ${resourceName} (${resourceType})</h1>
+    <p>${schoolName} &nbsp;·&nbsp; Impresso em ${new Date().toLocaleDateString('pt-br')}</p>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Per.</th>
+        ${WEEKDAYS.map(d => `<th>${d}</th>`).join('')}
+      </tr>
+    </thead>
+    <tbody>${tableRows}</tbody>
+  </table>
+  <div class="footer">Gerado pelo Aula</div>
+  <script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+    const win = window.open('', '_blank', 'width=900,height=700');
+    win.document.write(printHtml);
+    win.document.close();
   }
 
   // ─── Formulários ────────────────────────────────────────────────────────────

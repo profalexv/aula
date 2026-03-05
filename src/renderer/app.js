@@ -1,19 +1,37 @@
 /**
  * app.js — Script principal do renderer.
- * Gerencia a navegação entre abas, licenças e funções utilitárias globais.
+ * Gerencia a navegação entre abas, licenças, autenticação e funções utilitárias globais.
  */
 
 // ─── Mapa de módulos disponíveis ─────────────────────────────────────────────
 const MODULES = {
   cronograma: window.ModuleCronograma,
   aula:       window.ModuleAula,
+  usuarios:   null, // Carregado dinamicamente
   licencas:   { mount(c) { window.LicenseManager.renderManagementScreen(c); } },
 };
 
 let currentTab = 'cronograma';
+window.__authManager = null;
+
+/**
+ * Função para registrar módulos dinâmicos
+ */
+window.registerModule = function(module) {
+  MODULES[module.name] = {
+    initialize: module.initialize,
+    render: module.render,
+    afterRender: module.afterRender,
+    beforeDestroy: module.beforeDestroy,
+    mount(container) {
+      container.innerHTML = this.render();
+      if (this.afterRender) this.afterRender();
+    }
+  };
+};
 
 // ─── Navegação de abas ────────────────────────────────────────────────────────
-window._activateTab = function activateTab(name) {
+window._activateTab = async function activateTab(name) {
   // Módulos travados redirecionam para ativação
   if (name !== 'licencas' && !window.LicenseManager.isLicensed(name)) {
     window.LicenseManager.openActivationScreen(name);
@@ -29,8 +47,23 @@ window._activateTab = function activateTab(name) {
   });
 
   const content = document.getElementById('app-content');
-  content.innerHTML = '';
-  mod.mount(content);
+  content.innerHTML = '<div class="loading"><span class="loading-dots">Carregando</span></div>';
+
+  try {
+    // Inicializa o módulo se tiver um método initialize
+    if (mod.initialize) {
+      await mod.initialize(window.AppContext.schoolId);
+    }
+    mod.mount(content);
+  } catch (e) {
+    content.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:16px;color:var(--color-text-muted)">
+        <span style="font-size:40px">⚠️</span>
+        <p style="font-weight:600;color:var(--color-text)">Erro ao carregar módulo</p>
+        <p style="font-size:13px">${e.message}</p>
+        <button class="btn btn-ghost btn-sm" onclick="window._activateTab('${name}')">Tentar novamente</button>
+      </div>`;
+  }
 };
 
 // ─── Toast de notificações ────────────────────────────────────────────────────
@@ -90,17 +123,17 @@ window.openModal = function({ title, bodyHtml, onConfirm, confirmLabel = 'Salvar
   return overlay;
 };
 
-window.confirmDialog = function(message) {
+window.confirmDialog = function(message, { confirmLabel = 'Excluir', confirmClass = 'btn-danger', title = 'Confirmar' } = {}) {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.innerHTML = `
       <div class="modal" role="dialog" style="max-width:360px">
-        <div class="modal-header"><h3>Confirmar</h3></div>
+        <div class="modal-header"><h3>${title}</h3></div>
         <div class="modal-body"><p>${message}</p></div>
         <div class="modal-footer">
           <button class="btn btn-ghost" id="cd-cancel">Cancelar</button>
-          <button class="btn btn-danger" id="cd-confirm">Excluir</button>
+          <button class="btn ${confirmClass}" id="cd-confirm">${confirmLabel}</button>
         </div>
       </div>
     `;
@@ -217,13 +250,186 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Carrega escola única. Se não existir, abre setup de primeira execução.
   const hasSchool = await window.AppContext.load();
   if (!hasSchool) {
-    window.AppContext.openEditor(() => {
-      window.AppContext.load();
-      window._activateTab('cronograma');
+    window.AppContext.openEditor(async () => {
+      await window.AppContext.load();
+      await initializeAuth();
     });
     // Renderiza o módulo padrão atrás do modal para contexto visual
     window._activateTab('cronograma');
   } else {
-    window._activateTab('cronograma');
+    // Inicializa o sistema de autenticação
+    await initializeAuth();
   }
 });
+
+/**
+ * Inicializa o sistema de autenticação
+ */
+async function initializeAuth() {
+  const schoolId = window.AppContext.schoolId;
+  if (!schoolId) return;
+
+  try {
+    // Cria instância do gerenciador de autenticação
+    window.__authManager = new window.AuthManager();
+    await window.__authManager.initialize(schoolId);
+
+    const authScreen = document.getElementById('auth-screen');
+    
+    // Verifica se há admin
+    const hasAdmin = await window.__authManager.checkFirstAdmin();
+
+    if (!window.__authManager.isAuthenticated()) {
+      // Não autenticado
+      showAuthScreen(hasAdmin);
+    } else {
+      // Já autenticado, oculta tela de auth
+      authScreen.classList.add('hidden');
+      setupMainApp();
+    }
+  } catch (e) {
+    document.body.innerHTML = `
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;gap:20px;background:var(--color-bg);color:var(--color-text)">
+        <span style="font-size:56px">💥</span>
+        <h2 style="margin:0">Falha ao iniciar o aplicativo</h2>
+        <p style="color:var(--color-text-muted);max-width:400px;text-align:center">${e.message}</p>
+        <button class="btn btn-primary" onclick="location.reload()">Reiniciar</button>
+      </div>`;
+  }
+}
+
+/**
+ * Mostra a tela de autenticação (login ou novo admin)
+ */
+function showAuthScreen(hasAdmin) {
+  const authScreen = document.getElementById('auth-screen');
+  authScreen.classList.remove('hidden');
+
+  const schoolName = window.AppContext.schoolName;
+  const loginForm = document.getElementById('auth-login-form');
+  const registerForm = document.getElementById('auth-register-form');
+  const loading = document.getElementById('auth-loading');
+
+  // Atualiza nome da escola
+  document.getElementById('auth-school-name').textContent = `- ${schoolName}`;
+
+  // Define qual formulário mostrar
+  if (hasAdmin) {
+    loginForm.style.display = 'block';
+    registerForm.style.display = 'none';
+    setupLoginForm();
+  } else {
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    setupRegisterForm();
+  }
+
+  async function setupLoginForm() {
+    loginForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loading.style.display = 'block';
+      loginForm.style.display = 'none';
+
+      try {
+        const username = loginForm.querySelector('#auth-login-username').value;
+        const password = loginForm.querySelector('#auth-login-password').value;
+
+        await window.__authManager.login(username, password);
+        
+        // Autenticação bem-sucedida
+        authScreen.classList.add('hidden');
+        setupMainApp();
+      } catch (e) {
+        loading.style.display = 'none';
+        loginForm.style.display = 'block';
+        const errorEl = loginForm.querySelector('#auth-login-error');
+        errorEl.textContent = e.message;
+        errorEl.classList.add('show');
+      }
+    });
+  }
+
+  async function setupRegisterForm() {
+    registerForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      loading.style.display = 'block';
+      registerForm.style.display = 'none';
+
+      try {
+        const name = registerForm.querySelector('#auth-register-name').value;
+        const username = registerForm.querySelector('#auth-register-username').value;
+        const password = registerForm.querySelector('#auth-register-password').value;
+        const passwordConfirm = registerForm.querySelector('#auth-register-password-confirm').value;
+
+        if (password !== passwordConfirm) {
+          throw new Error('As senhas não conferem.');
+        }
+
+        if (password.length < 6) {
+          throw new Error('A senha deve ter pelo menos 6 caracteres.');
+        }
+
+        await window.__authManager.registerFirstAdmin(name, username, password);
+        
+        // Registro bem-sucedido
+        authScreen.classList.add('hidden');
+        setupMainApp();
+      } catch (e) {
+        loading.style.display = 'none';
+        registerForm.style.display = 'block';
+        const errorEl = registerForm.querySelector('#auth-register-error');
+        errorEl.textContent = e.message;
+        errorEl.classList.add('show');
+      }
+    });
+  }
+}
+
+/**
+ * Configura o app principal (módulos disponíveis)
+ */
+function setupMainApp() {
+  // Mostra o header com abas
+  document.querySelector('.tab-bar').style.display = 'flex';
+  document.getElementById('app-content').style.display = 'block';
+
+  // Controla visibilidade de abas por papel
+  const isAdmin = window.__authManager?.isAdmin() ?? false;
+  const usuariosTab = document.querySelector('.tab-btn[data-module="usuarios"]');
+  if (usuariosTab) usuariosTab.style.display = isAdmin ? '' : 'none';
+
+  // Expõe o papel globalmente para os módulos
+  window.AppContext.currentUserRole = isAdmin ? 'admin' : 'viewer';
+
+  // Inicia verificação periódica de sessão
+  if (window.__authManager) {
+    window.__authManager.startSessionWatcher();
+  }
+
+  // Adiciona botão de logout se ainda não existir
+  setupLogoutButton();
+
+  // Carrega primeiro módulo
+  window._activateTab('cronograma');
+}
+
+/**
+ * Adiciona o botão de logout ao header
+ */
+function setupLogoutButton() {
+  const nav = document.querySelector('nav.tabs');
+  if (nav && !nav.querySelector('#btn-logout')) {
+    const logoutBtn = document.createElement('button');
+    logoutBtn.id = 'btn-logout';
+    logoutBtn.className = 'tab-btn tab-btn-icon';
+    logoutBtn.title = 'Sair';
+    logoutBtn.innerHTML = '🚪';
+    logoutBtn.addEventListener('click', async () => {
+      if (confirm('Tem certeza que deseja sair?')) {
+        await window.__authManager.logout();
+        location.reload();
+      }
+    });
+    nav.appendChild(logoutBtn);
+  }
+}

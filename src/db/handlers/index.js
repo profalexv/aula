@@ -8,8 +8,9 @@ const logger = require('../../utils/logger');
 // Sub-handlers
 const { registerSuperadminHandlers } = require('./superadmins');
 const { registerSchoolHandlers } = require('./schools');
-const { registerAdminHandlers, registerTeacherHandlers, registerScheduleHandlers, registerLessonHandlers } = require('./consolidated');
+const { registerAdminHandlers, registerTeacherHandlers, registerScheduleHandlers, registerLessonHandlers, registerShiftHandlers, registerResourceHandlers, registerClassHandlers, registerCurriculaHandlers } = require('./consolidated');
 const { registerLicenseHandlers } = require('./licenses');
+const { registerAuthHandlers } = require('./auth');
 
 /**
  * Registra todos os handlers IPC para operações de banco de dados.
@@ -23,12 +24,17 @@ function registerIpcHandlers(ipcMain) {
   });
 
   // ─── Registra handlers por entidade ────────────────────────────────────────
+  registerAuthHandlers(ipcMain);
   registerLicenseHandlers(ipcMain);
   registerSuperadminHandlers(ipcMain);
   registerSchoolHandlers(ipcMain);
   registerAdminHandlers(ipcMain);
   registerTeacherHandlers(ipcMain);
   registerScheduleHandlers(ipcMain);
+  registerShiftHandlers(ipcMain);
+  registerResourceHandlers(ipcMain);
+  registerClassHandlers(ipcMain);
+  registerCurriculaHandlers(ipcMain);
   registerLessonHandlers(ipcMain);
 
   // TODO: Adicionar handlers para:

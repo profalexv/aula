@@ -56,6 +56,7 @@ function setupDatabase() {
       name TEXT NOT NULL,
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
+      active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE
     );
@@ -67,8 +68,19 @@ function setupDatabase() {
       registration TEXT,
       email TEXT,
       subjects TEXT,
+      active INTEGER DEFAULT 1,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS admin_sessions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      school_id INTEGER NOT NULL,
+      admin_id INTEGER NOT NULL,
+      token TEXT UNIQUE NOT NULL,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (school_id) REFERENCES schools(id) ON DELETE CASCADE,
+      FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
     );
 
     CREATE TABLE IF NOT EXISTS schedules (
@@ -198,10 +210,25 @@ function setupDatabase() {
     );
   `);
 
+  // ─── Migrações (adiciona colunas que podem estar faltando) ──────────────────
+  try {
+    db.prepare("ALTER TABLE admins ADD COLUMN active INTEGER DEFAULT 1").run();
+  } catch (e) {
+    // Coluna já existe
+  }
+  try {
+    db.prepare("ALTER TABLE teachers ADD COLUMN active INTEGER DEFAULT 1").run();
+  } catch (e) {
+    // Coluna já existe
+  }
+
   // Cria índices para melhorar performance
   db.exec(`
     CREATE INDEX IF NOT EXISTS idx_admins_school_id ON admins(school_id);
     CREATE INDEX IF NOT EXISTS idx_teachers_school_id ON teachers(school_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_sessions_school_id ON admin_sessions(school_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin_id ON admin_sessions(admin_id);
+    CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(token);
     CREATE INDEX IF NOT EXISTS idx_schedules_school_id ON schedules(school_id);
     CREATE INDEX IF NOT EXISTS idx_resources_school_id ON resources(school_id);
     CREATE INDEX IF NOT EXISTS idx_lessons_schedule_id ON lessons(schedule_id);
